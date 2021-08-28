@@ -1,4 +1,4 @@
-const version = "3.1";
+const version = "3.1.1";
 
 // Order is important here:
 // EMF-5 | Freezing | Spirit Box | Writing | Orbs | Fingerprints | DOTS
@@ -17,7 +17,7 @@ const BANSHEE = "0000111",
   POLTERGEIST = "0011010",
   REVENANT =    "0101100",
   SHADE =       "1101000",
-  SPIRIT =      "1011000", // ONLY CORRECT ONE
+  SPIRIT =      "1011000",
   WRAITH =      "1010001",
   YOKAI =       "0010101",
   YUREI =       "0100101";
@@ -119,6 +119,7 @@ let userState = {
   channelName: "",
   conclusionString: "",
   counter: 0,
+  counter2: 0,
   evidence: {
     emf: EVIDENCE_OFF,
     spiritBox: EVIDENCE_OFF,
@@ -195,6 +196,7 @@ const modOrVIPPermission = (configuration) => {
 
 window.addEventListener("onWidgetLoad", function (obj) {
   // Field data from Stream Elements from the overlay settings the user set
+  userState.channelName = obj["detail"]["channel"]["username"];
   const fieldData = obj.detail.fieldData;
 
   // Sets up all the commands for the widget
@@ -352,7 +354,7 @@ window.addEventListener("onWidgetLoad", function (obj) {
         modOrVIPPermission(config),
         data,
         _setCounterName,
-        [data.text]
+        [1, data.text]
       );
     },
     [fieldData["setCounterNumberCommand"]]: (data) => {
@@ -360,7 +362,7 @@ window.addEventListener("onWidgetLoad", function (obj) {
         modOrVIPPermission(config),
         data,
         _setCounterNumber,
-        [data.text]
+        [1, data.text]
       );
     },
     [fieldData["incrementCounterCommand"]]: (data) => {
@@ -368,7 +370,7 @@ window.addEventListener("onWidgetLoad", function (obj) {
         modOrVIPPermission(config),
         data,
         _incrementCounter,
-        []
+        [1]
       );
     },
     [fieldData["decrementCounterCommand"]]: (data) => {
@@ -376,7 +378,39 @@ window.addEventListener("onWidgetLoad", function (obj) {
         modOrVIPPermission(config),
         data,
         _decrementCounter,
-        []
+        [1]
+      );
+    },
+    [fieldData["setCounter2NameCommand"]]: (data) => {
+      runCommandWithPermission(
+        modOrVIPPermission(config),
+        data,
+        _setCounterName,
+        [2, data.text]
+      );
+    },
+    [fieldData["setCounter2NumberCommand"]]: (data) => {
+      runCommandWithPermission(
+        modOrVIPPermission(config),
+        data,
+        _setCounterNumber,
+        [2, data.text]
+      );
+    },
+    [fieldData["incrementCounter2Command"]]: (data) => {
+      runCommandWithPermission(
+        modOrVIPPermission(config),
+        data,
+        _incrementCounter,
+        [2]
+      );
+    },
+    [fieldData["decrementCounter2Command"]]: (data) => {
+      runCommandWithPermission(
+        modOrVIPPermission(config),
+        data,
+        _decrementCounter,
+        [2]
       );
     },
     "!glitchedmythos": (data) => {
@@ -533,7 +567,9 @@ window.addEventListener("onWidgetLoad", function (obj) {
       : "No Map Selected...",
   };
   config.optionalObj = {
-    noOptionalString: fieldData["noOptionalObjectivesMessage"],
+    noOptionalString: fieldData["noOptionalObjectivesMessage"]
+      ? fieldData["noOptionalObjectivesMessage"]
+      : "Widget Author: GlitchedMythos",
     spacing: fieldData["objectivesSpacing"],
   };
   config.markImpossibleEvidence =
@@ -548,6 +584,7 @@ window.addEventListener("onWidgetLoad", function (obj) {
   let displayOuija = fieldData["displayOuija"] === "yes" ? true : false;
   let displayEvidence = fieldData["displayEvidence"] === "yes" ? true : false;
   let displayCounter = fieldData["displayCounter"] === "yes" ? true : false;
+  let displayCounter2 = fieldData["displayCounter2"] === "yes" ? true : false;
   let displayOptionalObjectives =
     fieldData["displayOptionalObjectives"] === "yes" ? true : false;
   let displayConclusion =
@@ -586,6 +623,12 @@ window.addEventListener("onWidgetLoad", function (obj) {
 
     if (!displayCounter) {
       $(`#counter-container`).addClass("hidden");
+    }
+    if (!displayCounter2) {
+      $(`#counter2-name`).addClass("hidden");
+      $(`#counter2-number`).addClass("hidden");
+    } else {
+      $(`#counter2-name`).html(". "+$(`#counter2-name`).text());
     }
   }
 
@@ -768,22 +811,22 @@ const _toggleVIPAccessibility = (canUseVIP) => {
   toggleVIPAccessibility(canUseVIP);
 };
 
-const _setCounterName = (command) => {
+const _setCounterName = (num, command) => {
   commandArgument = command.split(" ").slice(1).join(" ");
-  setCounterName(commandArgument);
+  setCounterName(num, commandArgument);
 };
 
-const _setCounterNumber = (command) => {
+const _setCounterNumber = (num, command) => {
   commandArgument = command.split(" ").slice(1).join(" ");
-  setCounterNumber(commandArgument);
+  setCounterNumber(num, commandArgument);
 };
 
-const _incrementCounter = () => {
-  incrementCounter();
+const _incrementCounter = (num) => {
+  incrementCounter(num);
 };
 
-const _decrementCounter = () => {
-  decrementCounter();
+const _decrementCounter = (num) => {
+  decrementCounter(num);
 };
 
 const _glitchedMythos = (command) => {
@@ -1352,25 +1395,43 @@ const updateConclusion = (conclusion) => {
 };
 
 /** COUNTER RELATED DOM MANIPULATING FUNCTIONS */
-const setCounterName = (name) => {
-  $("#counter-name").html(name);
-};
-
-const setCounterNumber = (number) => {
-  let num = parseInt(number);
-
-  if (Number.isInteger(num)) {
-    $("#counter-number").text("" + num);
+const setCounterName = (which, name) => {
+  if (which === 1) {
+    $("#counter-name").html(name);
+  } else if (which === 2) {
+    $("#counter2-name").html(". "+name);
   }
 };
 
-const incrementCounter = (num) => {
-  let counter = $("#counter-number");
+const setCounterNumber = (which, number) => {
+  let num = parseInt(number);
+
+  if (Number.isInteger(num)) {
+    if (which === 1) {
+      $("#counter-number").text("" + num);
+    } else if (which === 2) {
+      $("#counter2-number").text("" + num);
+    }
+  }
+};
+
+const incrementCounter = (which, num) => {
+  let counter;
+  if (which === 1) {
+    counter = $("#counter-number");
+  } else if (which === 2) {
+    counter = $("#counter2-number");
+  }
   counter.text(parseInt(counter.text()) + (num ? num : 1));
 };
 
-const decrementCounter = (num) => {
-  let counter = $("#counter-number");
+const decrementCounter = (which, num) => {
+  let counter;
+  if (which === 1) {
+    counter = $("#counter-number");
+  } else if (which === 2) {
+    counter = $("#counter2-number");
+  }
   counter.text(parseInt(counter.text()) - (num ? num : 1));
 };
 
